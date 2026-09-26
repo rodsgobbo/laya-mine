@@ -1,110 +1,152 @@
-# Astra and JEV Minecraft agent
+# laya-mine
 
-This project uses GPT-6 Astra or GPT-5.6 Sol to plan and JEV to select player actions in Minecraft Java 1.16.5. It uses the official vanilla server and Mineflayer. A read-only Java sensor can report the exact dragon head position. It does not change game rules or entity state. Each selected action is sent to the game through the normal player protocol.
+Um bot que joga Minecraft Java 1.16.5 sozinho, num servidor local. O **Claude** (pelo Claude Desktop) planeja e
+dá as ordens, e o **[Laya](https://huggingface.co/convaiinnovations/laya)**, um modelo de decisão que roda no
+próprio computador, escolhe cada passo das missões. Projeto feito por um pai e o filho.
 
-## Latest verified result
+- **Missões** (juntar material e craftar): o Claude diz o que quer, por exemplo *"30 pedregulhos e 10 troncos de
+  bétula"*, e o Laya decide sozinho cada ação até terminar. É local e não gasta nada.
+- **Comandos diretos** (construir e ações pontuais): o Claude manda e o bot faz na hora, por exemplo *"coloque
+  pedregulho aqui"*, *"equipe a picareta"* ou *"abra o baú"*.
+- **Visualizador** no navegador, com barra de itens, vida, fome, relógio e câmera que segue o bot. Também dá para
+  assistir pelo tablet ou pelo celular na mesma rede.
 
-The latest run, `nether-final-08`, completed in **8 minutes 43.300 seconds**. The previous video took 14 minutes 31.800 seconds. The new run was 40% shorter. The End combat stage took 152 seconds instead of 332 seconds. Dragon flight and landing times can vary between runs.
-
-The agent started with an empty inventory in a fresh Survival/Peaceful world. Astra planned and JEV selected the actions. It used the Nether for travel, killed the dragon with six bed explosions on the first landing, and reached the exit with full health and no deaths. There was no restart, source change, or operator repair during the run.
-
-The run used 131 JEV decisions and 35 Astra calls. All 17 run checks, eight route/camera/screen checks, and 29 local tests passed. The full earlier video and action log were reviewed before the local tests and new recording.
-
-Camera control uses continuous turns, with a limit of 240 degrees per second on each axis and acceleration of 960 degrees per second squared. A hidden native Minecraft client renders the game without desktop input. The capture includes health, hunger, hotbar, held items, inventory, crafting, and native animations.
-
-The video is 960 × 540 at 20 frames per second, without audio. A translucent full-width top banner uses Menlo and shows the model names, elapsed time in milliseconds, XYZ coordinates, planner objective, and selected action. These labels use recorded responses and game events.
-
-**Recordings and generated evidence remain local and are excluded from Git.** The local video is `runs/nether-final-08/full-playthrough-banner.mp4`. Its verification, timing comparison, and action log are in the same run directory. This repository contains the code, tests, build scripts, and route data. It does not include Minecraft binaries, downloaded runtimes, saved worlds, or credentials.
-
-## Credentials
-
-Model calls obtain the OpenRouter key from Google Secret Manager and keep it in process memory. The current scripts refer to the original deployment's project and secret name; these names are not credentials. Configure those references for your own project in `model-relay.mjs` and `models.mjs`. For the relay, authenticate with Google application default credentials, grant access to the secret, and set `MODEL_RELAY=http://127.0.0.1:3099` when starting the agent. Do not place keys in source files or run logs.
-
-The native renderer and launch scripts were developed on macOS. Runtime paths and local server settings must be configured for another machine. Historical review notes describe earlier versions; use the current code and the result above for the latest behavior.
-
-## Game settings
-
-- Seed: `8398967436125155523`
-- Mode: Survival
-- Difficulty: Peaceful for this recording
-- Verified active End portal center: `-1130, 34, 856`
-- Main server: `127.0.0.1:25576`
-- Native display: hidden read-only Minecraft client
-- Status: `http://127.0.0.1:3078`
-
-The selected seed has a village, three supply chests with 21 obsidian, and a naturally active End portal. The route uses the Nether as a travel shortcut and requires entry and exit before combat. It does not need blaze rods. This is a useful speedrun seed, not proof of the easiest possible seed. The route was surveyed in a separate test world. Final-run placements and movement use normal player interactions.
-
-## Model roles
-
-The planner sets the current objective, item targets, and a travel waypoint. JEV selects one available action from current game observations. Actions include travel, mining one block, collecting a drop, crafting, opening a chest, eating, sleeping, and combat interactions. Mineflayer handles the movement path and game protocol. This is structured-state control, not control from screenshots or individual key presses. The models can see blocks in loaded chunks. Known seed coordinates are supplied.
-
-Model IDs:
-
-- `openai/gpt-6-astra` (default) or `openai/gpt-5.6-sol` (`PLANNER_MODEL`), through `/api/v1/chat/completions`
-- `typesafe/jev-1.13`, through `/api/alpha/decisions`
-
-The key is loaded into process memory from Google Secret Manager. The general `OPENROUTER_API_KEY` environment variable is ignored to prevent use of an unrelated key. The key is not written to run logs.
-
-## Files and evidence
-
-`runs/<run>/events.jsonl` stores the requests, model responses, selected actions, game results, and completion events. `status.json` stores current progress. A `victory.json` file requires dragon-death evidence and the exit-portal event. Death evidence is either the kill advancement or server-supplied zero health with the dragon dying phase. The Java 1.16.5 exit event uses numeric reason 4. Final review must also check the world DragonFight state and the video. Bed kills can omit the kill advancement.
-
-New recordings use the official Minecraft Java 1.16.5 client. A read-only local protocol mirror sends the game state to this client. The video includes native entity models, textures, movement, digging and hand animations, the hotbar, held item, health, hunger, air, and dragon health. Capture is 960 × 540 at 20 frames per second, without audio. The window is hidden; focus and cursor control are disabled. Capture reads the game frame buffer, not the desktop. The older `recorded-06` video used Prismarine Viewer and a custom HUD.
-
-The `combat-lab` directory is a separate test server. It can use prepared items and positions to test combat code. A combat-lab result does not qualify as a full Survival run.
-
-## Start a run
-
-Install dependencies with `npm install`. Start `server/server.jar` from the `server` directory with a compatible Java runtime. The installed Minecraft Java runtime works for this server.
-
-Use `./start-server.sh` to start the main server with its read-only sensor. For a fresh recording, first choose an unused world name in `server/server.properties`. Use a new log directory with the same name. Start the agent from this directory:
-
-```sh
-node optimization/nether/freeze-run.mjs NEW_RUN
-PLANNER_MODEL=openai/gpt-6-astra RUN_ID=NEW_RUN \
-NATIVE_VIEW=1 WAIT_NATIVE=1 NATIVE_RECORD=1 \
-DRAGON_SENSOR_URL=http://127.0.0.1:3093 node nether-agent.mjs
+```
+Claude Desktop ──MCP──> mcp-server.mjs ──HTTP 127.0.0.1:3100──> desktop-bridge.mjs (dentro do missao.mjs)
+                                                                   │
+                        laya-serve :8000 <── models.mjs decide() ──┤── comandos.mjs (comandos diretos)
+                                                                   │
+                        servidor Minecraft :25576 <── Mineflayer ──┘── visualizador :3007
 ```
 
-When the local mirror is listening on port 25578, start `python3 native-client/launch.py`. The agent waits for the hidden client and recorder before the first action. The native client uses an isolated game directory. It does not change the user's Minecraft settings. The recorder stops after the exit portal event. To stop a test at an action boundary, create `runs/NEW_RUN/stop`. Wait for `full-playthrough.mp4.finished.json` before closing the native client.
+Os scripts de ligar e desligar são para **Windows** (PowerShell). O código do bot é Node.js e roda em qualquer
+sistema, mas em outro sistema é preciso iniciar as peças à mão.
 
-The native client dependencies are installed with `python3 native-client/install.py`; build the display and capture adapter with `./native-client/build.sh`. The supplied launch script uses its local Java 17 runtime. Model access requires available OpenRouter credit.
+## Instalação
 
-A new log directory alone does not reset the world. Stop the server, choose a new unused `level-name`, and start it again with the same seed. Keep the old world as evidence.
+Você precisa de:
 
-Run `node --test evidence.test.mjs native-mirror.test.mjs optimization/*.test.mjs optimization/pass-2/policy.test.mjs optimization/nether/*.test.mjs` to check completion events, native packets, action policy, and pathfinder cancellation. Live server tests remain necessary for movement, crafting, combat, and recording.
+- [Node.js](https://nodejs.org) 20 ou mais novo
+- [Python](https://www.python.org) 3.10 ou mais novo
+- Java 17 ([Eclipse Temurin](https://adoptium.net/temurin/releases/?version=17), que o `iniciar.ps1` procura em
+  `C:\Program Files\Eclipse Adoptium\jdk-17*`)
+- [Claude Desktop](https://claude.ai/download)
+- Minecraft Java Edition 1.16.5, só se você quiser entrar no mundo junto com o bot
 
-## Sources
+### 1. Bot
 
-- [Official TypeSafe introduction and Doom demo](https://typesafe.ai/blog/introducing-system-one-models-and-jev): structured game state, typed decisions, and a real-time action loop.
-- [JEV Minecraft demo](https://www.reddit.com/r/accelerate/comments/1whk9oy/new_typesafe_ai_jev_model_playing_minecraft_wip/): the author describes JEV choices through Mineflayer.
-- [Minecraft demo source](https://github.com/ellistev/typesafe-minecraft-demo): both bounded direct actions and earlier batch actions are documented.
-- [Mario example](https://github.com/fhshaik/typesafe-mario): structured observations and a small legal action set.
-- [StarCraft example](https://github.com/phyous/tsai-sc): bounded actions, recorded model probabilities, and explicit victory checks.
-- [StarCraft Twitter post](https://x.com/literallydenis/status/2100622868878868603): found through the public JEV project index; direct retrieval was blocked by Twitter.
-- [TypeSafe launch Twitter post](https://x.com/CompleteSkeptic/status/2099925682726002904): direct retrieval was blocked.
-- [New seed human speedrun](https://www.speedrun.com/mc/runs/yoex3d0z).
-- [Previous seed report](https://www.reddit.com/r/minecraftseeds/comments/m6vjbd/): Java 1.16 seed and portal coordinates.
-- [One-cycle guide](https://mcsr.info/speedrunning/one-cycle): bed support, cover, and timing.
-- [Mineflayer](https://github.com/PrismarineJS/mineflayer), [Pathfinder](https://github.com/PrismarineJS/mineflayer-pathfinder), and [Prismarine Viewer](https://github.com/PrismarineJS/prismarine-viewer).
-- [Official Astra model documentation](https://developers.openai.com/api/docs/models/gpt-6-astra).
+```powershell
+git clone https://github.com/rodsgobbo/laya-mine.git
+cd laya-mine
+npm install
+```
 
-## Combat implementation
+O `npm install` também roda `patch-pathfinder.mjs` e `prepare-viewer.mjs`, que ajustam dois pacotes do
+`node_modules`. Os dois podem rodar mais de uma vez sem problema.
 
-`end-combat.mjs` offers one bounded bed attack. JEV chooses the action. The action places one bed, aims at it, and waits for the observed head to enter the attack window before one use command. It aborts if the player loses cover or breath enters cover. The local test improved from 11 to 46 damage per bed after aiming first and tightening the window. A later prepared test used seven beds to kill the dragon and ended with 13 health, without damage protection. Its evidence is `combat-lab/eight-bed-test-03.jsonl`. This test used a local test driver, prepared items, and a prepared dragon approach. The first full sequence with Sol and JEV succeeded in `practice-02`.
+### 2. Laya
 
-`observer/DragonObserver.java` adds a read-only observation call to the server dragon tick. Its HTTP endpoint is local only. Build it with `./build-observer.sh`. No part of this sensor grants items, moves the player, changes health, or changes the dragon AI.
+```powershell
+python -m venv .venv
+.\.venv\Scripts\pip install "laya[serve]"
+```
 
-`combat-probe.mjs` is a local test driver hardcoded to port 25577. It does not call either model and must never be presented as a model-controlled run. The `combat-lab` files include prepared positions, items, and other test changes.
+Na primeira vez em que liga, o Laya baixa os pesos do Hugging Face e roda na CPU.
 
-The bed timing research also used [AltoClef's bed-combat source](https://github.com/gaucho-matrero/altoclef/blob/main/src/main/java/adris/altoclef/tasks/speedrun/KillEnderDragonWithBedsTask.java). The action implementation in this project is separate.
+### 3. Servidor do Minecraft
 
-## Recording and control limits
+Crie a pasta `server/`, baixe nela o `server.jar` oficial da versão **1.16.5** e aceite o EULA:
 
-The final route is fixed in `optimization/nether/config.json`. Astra receives game state and route observations; JEV selects bounded actions. Mineflayer performs pathfinding and timed block interactions. This is not screenshot-only or individual-key control. The native view mirrors the bot state. Its camera uses small turns, and its inventory screens show the current item and cursor state. The final run used no live operator guidance or repairs.
+```powershell
+mkdir server
+# coloque server.jar dentro de server\
+cd server
+$java = (Get-ChildItem "C:\Program Files\Eclipse Adoptium\jdk-17*\bin\java.exe")[0].FullName
+& $java -jar server.jar nogui   # na primeira vez, gera os arquivos e para
+(Get-Content eula.txt) -replace 'eula=false','eula=true' | Set-Content eula.txt
+cd ..
+```
 
-A recording can contain several capture files if the agent needs a code update. Preserve all active gameplay. Mark each update pause in the combined video. Report deaths and pauses; do not describe such a recording as a deathless or uninterrupted run.
+No `server/server.properties`, deixe estas linhas:
 
-The new native video is one continuous capture. Add the information strip with `node overlay.mjs nether-final-02`. Check it with `node verify-run.mjs nether-final-02 nether-final-02 full-playthrough-overlay.mp4`. To rebuild the older viewer video, run `node assemble-video.mjs recorded-06`; check it with `node verify-run.mjs recorded-06`. The raw capture files, action log, video manifest, and world are preserved. The older viewer manifest records its development pauses; those do not apply to the new continuous recording. The overlay marks the exit event as complete. The current code prevents another game action after victory.
+```properties
+server-ip=127.0.0.1
+server-port=25576
+online-mode=false
+difficulty=peaceful
+spawn-protection=0
+rcon.password=
+```
 
-A test in the separate lab showed that a long fall into an End portal can carry fall damage into the End. That proposed action was rejected. The recorded player used short, checked downward mining steps instead.
+O `iniciar.ps1` liga o RCON e gera sozinho uma senha aleatória para ele na primeira vez. Com ela, o
+`desligar.ps1` salva o mundo antes de fechar o servidor.
+
+### 4. Claude Desktop
+
+Abra o arquivo `%APPDATA%\Claude\claude_desktop_config.json` e acrescente o servidor MCP, trocando o caminho pelo
+da sua pasta:
+
+```json
+{
+  "mcpServers": {
+    "auto-mine": {
+      "command": "node",
+      "args": ["C:\\caminho\\para\\laya-mine\\mcp-server.mjs"]
+    }
+  }
+}
+```
+
+Feche e abra o Claude Desktop. As ferramentas `ver_jogo`, `definir_plano` e `executar_comandos` devem aparecer.
+
+## Uso
+
+```powershell
+.\iniciar.ps1      # liga o servidor, o Laya e o bot, e abre o visualizador
+.\desligar.ps1     # desliga tudo e salva o mundo
+```
+
+Depois disso, é só pedir as coisas no Claude Desktop. O guia completo, com exemplos de pedidos, o visualizador e o
+que fazer quando o bot empaca, está em **[COMO-JOGAR.md](COMO-JOGAR.md)**.
+
+## Arquivos
+
+| Arquivo | Papel |
+|---|---|
+| `missao.mjs` | O bot: conecta no servidor, roda as missões (o Laya escolhe entre as ações que `candidates()` monta) e os comandos diretos |
+| `comandos.mjs` | Comandos diretos do Claude. Cada ação é uma função em `actions` |
+| `mcp-server.mjs` | Ferramentas que o Claude Desktop enxerga |
+| `desktop-bridge.mjs` | Ponte local entre o MCP e o bot |
+| `models.mjs` | `decide()` chama o Laya. `plan()` espera o plano do Claude Desktop ou chama a API da Anthropic (`PLANNER=api`) |
+| `viewer-follow.js`, `recording-client.js` | Câmera que segue o bot, relógio e barra de itens no visualizador |
+| `patch-pathfinder.mjs`, `prepare-viewer.mjs` | Ajustes em `node_modules` aplicados no `npm install` |
+| `iniciar.ps1`, `desligar.ps1`, `reiniciar-bot.ps1` | Ligar tudo, desligar tudo, reiniciar só o bot |
+| `rcon.mjs` | Manda um comando ao console do servidor (`node rcon.mjs stop`) |
+| `metricas.mjs` | Quantas decisões foram do Laya e quantas do Claude, e a estimativa de tokens por construção |
+| `diag/buraco.mjs` | Segundo bot de diagnóstico, para separar bug do pathfinder de bot preso |
+| `CLAUDE.md` | Instruções para o Claude (Claude Code ou Claude Desktop com acesso à pasta) consertar o bot |
+
+Cada partida grava um registro em `runs/<partida>/events.jsonl`, com uma linha por decisão, comando e erro.
+
+## Segurança
+
+Tudo roda em `127.0.0.1`: o servidor do Minecraft, o Laya e a ponte do MCP. A única exceção é o visualizador, que
+só permite olhar. O servidor usa `online-mode=false`, então **não o exponha à internet**, porque qualquer pessoa
+entraria com qualquer nome. As ferramentas MCP só controlam o bot no jogo: nenhuma lê ou edita arquivos, e nenhuma
+roda comandos no computador.
+
+A chave da API da Anthropic, usada só no modo automático (`PLANNER=api`), é lida da variável de ambiente
+`ANTHROPIC_API_KEY` e nunca fica em arquivo.
+
+## Créditos
+
+Este projeto começou como fork de [rmalde/minecraft-agent](https://github.com/rmalde/minecraft-agent), um agente
+de speedrun até o Ender Dragon. O bot e os ajustes no pathfinder e no visualizador vieram de lá. Aqui ficou só a
+parte de missões e comandos, com o Laya no lugar do modelo de decisão original.
+
+- [Laya](https://huggingface.co/convaiinnovations/laya), da Convai Innovations (Apache-2.0)
+- [Mineflayer](https://github.com/PrismarineJS/mineflayer),
+  [mineflayer-pathfinder](https://github.com/PrismarineJS/mineflayer-pathfinder) e
+  [prismarine-viewer](https://github.com/PrismarineJS/prismarine-viewer)
+
+O projeto original não tem licença publicada, então este fork também não declara uma.

@@ -11,10 +11,10 @@
  function drawHUD(){
   hud.clearRect(0,0,W,H);hud.imageSmoothingEnabled=false;
   hud.fillStyle='#06111cda';hud.fillRect(0,0,W,86);
-  text((state.plannerName||'Planner').toUpperCase()+' + JEV  |  Minecraft 1.16.5  |  Survival / '+(state.difficulty||'Connecting'),12,18,14);
+  text((state.plannerName||'Planner').toUpperCase()+' + LAYA  |  Minecraft 1.16.5  |  Survival / '+(state.difficulty||'Connecting'),12,18,14);
   text(`${state.run||'Connecting'}  ·  Actions ${state.steps||0}  ·  XYZ ${state.position?Object.values(state.position).join(' / '):'—'}`,12,36,12,'#b4d9f5');
   text(((state.plannerName||'Planner')+': '+(state.plan?.objective||'Waiting')).slice(0,124),12,54);
-  text(('JEV: '+(state.active||'Waiting')).slice(0,124),12,72,12,'#ffd980');
+  text(('LAYA: '+(state.active||'Waiting')).slice(0,124),12,72,12,'#ffd980');
   if(state.battle){const hp=Math.max(0,state.battle.health||0);text('Ender Dragon '+hp.toFixed(1)+'/200',350,108,14,'#f7b9ff');hud.fillStyle='#2e1239';hud.fillRect(250,115,460,10);hud.fillStyle='#c041d6';hud.fillRect(250,115,460*hp/200,10);}
   const held=state.heldItem;if(!held){hud.fillStyle='#cda17c';hud.save();hud.translate(W-55,H-110);hud.rotate(-.35);hud.fillRect(-25,-35,50,100);hud.restore();text('Empty hand',W-160,H-61,12);}
   if(held){hud.save();hud.translate(W-95,H-133);hud.rotate(state.digging?Math.sin(Date.now()/120)*.12:-.35);drawItem(held,-42,-42,84);hud.restore();text(held.name.replaceAll('_',' '),W-205,H-61,12);}
@@ -29,7 +29,7 @@
   hud.strokeStyle='#fff';hud.lineWidth=1;hud.beginPath();hud.moveTo(W/2-5,H/2);hud.lineTo(W/2+5,H/2);hud.moveTo(W/2,H/2-5);hud.lineTo(W/2,H/2+5);hud.stroke();
   if(state.won&&state.dragonKilled){hud.fillStyle='#06111ce8';hud.fillRect(160,190,640,105);text('ENDER DRAGON DEFEATED',245,234,25,'#c0ff91');text('Exit portal reached · Game completion verified',221,270,17);}
  }
- async function tick(){try{state=await(await fetch('http://127.0.0.1:3078')).json();if(state.record&&!recorder&&new URL(location.href).searchParams.get('run')===state.run)start();if(!state.record&&recorder?.state==='recording')recorder.stop();}catch{}setTimeout(tick,250);}
+ async function tick(){try{state=await(await fetch('am-status')).json().catch(()=>null)||await(await fetch('http://127.0.0.1:3078')).json();if(state.record&&!recorder&&new URL(location.href).searchParams.get('run')===state.run)start();if(!state.record&&recorder?.state==='recording')recorder.stop();}catch{}setTimeout(tick,250);}
  let last=0;function paint(now){if(now-last>75){last=now;drawHUD();const game=[...document.querySelectorAll('canvas')].find(c=>c!==canvas&&c!==overlay);if(game){ctx.drawImage(game,0,0,W,H);ctx.drawImage(overlay,0,0);}}requestAnimationFrame(paint);}
  function start(){const captureId=crypto.randomUUID();recorder=new MediaRecorder(canvas.captureStream(12),{mimeType:'video/webm;codecs=vp9',videoBitsPerSecond:800000});recorder.ondataavailable=e=>{if(e.data.size)uploads=uploads.then(()=>fetch('http://127.0.0.1:3078/recording?id='+captureId,{method:'POST',body:new Blob([e.data],{type:'text/plain'})}));};recorder.onstop=async()=>{await uploads;await fetch('http://127.0.0.1:3078/recording/done?id='+captureId,{method:'POST'});recorder=null;};recorder.start(2000);fetch('http://127.0.0.1:3078/recording/start?id='+captureId,{method:'POST'});}
  requestAnimationFrame(paint);tick();

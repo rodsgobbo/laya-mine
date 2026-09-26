@@ -1,2 +1,0 @@
-Premain-Class: local.agentview.NativeViewAgent
-Class-Path: ../observer/javassist.jar

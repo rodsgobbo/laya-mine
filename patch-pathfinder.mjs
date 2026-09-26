@@ -24,6 +24,13 @@ s=fs.readFileSync(file,'utf8');if(!s.includes('preparePlacementAim')){
 }
 // Stop through normal controls. Recentring entity.position can put the player inside a low ceiling.
 s=fs.readFileSync(file,'utf8');if(!s.includes('Normal control stop; never rewrite player position')){const start=s.indexOf('  function fullStop () {'),end=s.indexOf('\n  function moveToEdge',start);if(start<0||end<0)throw Error('fullStop source changed');s=s.slice(0,start)+'  function fullStop () {\n    // Normal control stop; never rewrite player position or velocity.\n    bot.clearControlStates()\n  }\n'+s.slice(end);fs.writeFileSync(file,s);}
+// Auto-mine: a failed equip left lockEquipItem held forever, so the bot could never place a block again
+// (no pillaring out of holes) until restart. Release the lock on failure too.
+s=fs.readFileSync(file,'utf8');if(!s.includes('Equip failed; release the lock')){
+ const from="              })\n          })\n          .catch(_ignoreError => {})\n      }\n      return";
+ const to="              })\n          })\n          .catch(_ignoreError => {\n            // Equip failed; release the lock so later placements can run.\n            lockEquipItem.release()\n          })\n      }\n      return";
+ if(!s.includes(from))throw Error('Equip lock source changed; review the placement patch');fs.writeFileSync(file,s.replace(from,to));
+}
 // Preserve useful partial paths and reject an empty failed search.
 const gotoFile='node_modules/mineflayer-pathfinder/lib/goto.js';let go=fs.readFileSync(gotoFile,'utf8');
 if(!go.includes('Empty path did not reach the goal')){
