@@ -121,10 +121,21 @@ reescrita e o projeto foi publicado como fork público.
 
 Próximos passos, na ordem combinada:
 
-0. **Primeiro speedrun com o Laya.** O código está pronto (26/09/2026) mas nunca rodou. Nos eventos, veja
-   `planner_request`/`plan` (o Claude Desktop respondeu?), `decision` com `FAILED` e a etapa (`stage`) em que parou.
-   O risco maior é o Laya errar escolhas críticas no End (fugir do sopro, `one_timed_bed`). O remédio é o mesmo das
-   missões: oferecer opções mais específicas em `candidates()` e `policy.mjs`.
+0. **Terminar o speedrun com o Laya.** Primeiro teste em 26/09/2026 (`runs/speedrun-20260926-1520`): 129 decisões,
+   zero falhas, 6 planos do Claude Desktop (23 a 33 s cada); parado pelo usuário no Nether em (-103, 40, 96), a
+   ~36 blocos da saída. O que se aprendeu:
+   - Quase toda decisão chega ao Laya com **uma opção só**: `selectUsefulOptions` (`optimization/policy.mjs`) já
+     escolhe a rota. Escolha real só apareceu nos baús e nos blocos de navegação. O teste de verdade do Laya é no
+     End (fugir do sopro, `one_timed_bed`), que ainda não foi alcançado.
+   - Travou na `prepare` com só `wait`: os blocos de navegação eram procurados só na altura dos pés, e a vila é
+     grama. Corrigido: aceita `grass_block` e um nível abaixo (não o bloco sob o bot).
+   - O laya-serve escolhe o modelo pelo idioma do texto; o plano em português mandava tudo ao `multilingual`.
+     O speedrun fixa `LAYA_MODEL=english`. Os três modelos leem 1024 tokens: o fim do estado é cortado, as opções não.
+   - `laya-serve.exe` falha no OneDrive ("uv trampoline failed to canonicalize script path"): o `iniciar.ps1` liga
+     o Laya com `.venv\Scripts\python.exe -c "from laya.serve import main; main()"`. Outro programa na porta 8000
+     (o `crivo` já fez isso) agora faz o `iniciar.ps1` parar com aviso.
+   - Reiniciar o bot derruba o `esperar_pedido_de_plano` do Claude Desktop: peça a ele para continuar.
+   Nos eventos, veja `planner_request`/`plan`, `decision` com `FAILED`, e a etapa (`stage`) em que parou.
 1. **Expor o `construir`.** Já existe em `comandos.mjs` (formas `cheio`, `paredes`, `oca`; de baixo para cima,
    limpa folhas e capim, pula o que já está pronto), mas **não está** no `z.enum` nem na descrição do
    `mcp-server.mjs`, e nunca foi testado. Testar numa área livre antes de expor.

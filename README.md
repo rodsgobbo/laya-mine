@@ -51,7 +51,8 @@ python -m venv .venv
 .\.venv\Scripts\pip install "laya[serve]"
 ```
 
-Na primeira vez em que liga, o Laya baixa os pesos do Hugging Face e roda na CPU.
+Na primeira vez em que liga, o Laya baixa os pesos do Hugging Face e roda na CPU. Ele usa a porta 8000:
+se outro programa estiver nela, o `iniciar.ps1` avisa e para.
 
 ### 3. Servidor do Minecraft
 
@@ -126,7 +127,8 @@ ação, e o Claude Desktop define o objetivo de cada etapa.
 A rota só vale para a semente `8398967436125155523` em modo Peaceful (veja
 `speedrun/optimization/nether/config.json`). Cada corrida cria um mundo novo, e o `desligar.ps1` volta ao mundo
 das missões. O recorde do projeto original, com outros modelos, foi de 8m43s. Com o Laya ainda não houve corrida
-completa.
+completa. O primeiro teste passou pela vila e pelo portal e entrou no Nether, com 129 decisões e nenhuma falha, até
+ser interrompido.
 
 ## Arquivos
 

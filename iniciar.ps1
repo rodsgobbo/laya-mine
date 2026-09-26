@@ -3,7 +3,18 @@
 # Dragon speedrun instead of missions:  .\iniciar.ps1 -Speedrun   (fresh world with the route seed; Claude Desktop plans)
 param([switch]$Speedrun)
 $root = $PSScriptRoot
-$java = (Get-ChildItem "C:\Program Files\Eclipse Adoptium\jdk-17*\bin\java.exe" | Select-Object -First 1).FullName
+
+# Laya needs port 8000. A Laya already running there is reused; anything else there is reported now,
+# instead of the bot later asking another program for its decisions.
+$layaUp = try { (Invoke-RestMethod http://127.0.0.1:8000/health -TimeoutSec 2).status -eq 'ok' } catch { $false }
+$busy = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $layaUp -and $busy) {
+  $owner = (Get-CimInstance Win32_Process -Filter "ProcessId=$($busy.OwningProcess)").CommandLine
+  Write-Host "A porta 8000, do Laya, está ocupada por outro programa (PID $($busy.OwningProcess)):"
+  Write-Host "  $owner"
+  Write-Host "Feche esse programa e rode .\iniciar.ps1 de novo."; exit 1
+}
+$java =(Get-ChildItem "C:\Program Files\Eclipse Adoptium\jdk-17*\bin\java.exe" | Select-Object -First 1).FullName
 
 # RCON lets desligar.ps1 send "stop" (which saves the world) without anyone typing in the server window.
 # It listens on server-ip (127.0.0.1) only; the random password lives in server/, which git ignores.
@@ -33,7 +44,11 @@ Set-Content $props $text -NoNewline -Encoding ASCII
 # Windows this script opens; desligar.ps1 closes exactly these.
 $windows = @()
 $windows += (Start-Process powershell -PassThru -WorkingDirectory "$root\server" -ArgumentList "-NoExit", "-Command", "`$host.UI.RawUI.WindowTitle='Servidor Minecraft'; & '$java' -Xms512M -Xmx2G -jar server.jar nogui").Id
-$windows += (Start-Process powershell -PassThru -WorkingDirectory $root -ArgumentList "-NoExit", "-Command", "`$host.UI.RawUI.WindowTitle='Laya'; `$env:LAYA_HOST='127.0.0.1'; `$env:LAYA_DEVICE='cpu'; `$env:LAYA_PRELOAD='1'; .\.venv\Scripts\laya-serve.exe").Id
+# Through the venv's python, not laya-serve.exe: that uv launcher fails inside OneDrive folders
+# ("uv trampoline failed to canonicalize script path").
+if (-not $layaUp) {
+  $windows += (Start-Process powershell -PassThru -WorkingDirectory $root -ArgumentList "-NoExit", "-Command", "`$host.UI.RawUI.WindowTitle='Laya'; `$env:LAYA_HOST='127.0.0.1'; `$env:LAYA_DEVICE='cpu'; `$env:LAYA_PRELOAD='1'; .\.venv\Scripts\python.exe -c 'from laya.serve import main; main()'").Id
+}
 $windows | ConvertTo-Json | Set-Content "$root\.janelas.json"
 
 Write-Host "Esperando o servidor do Minecraft e o Laya ficarem prontos..."
@@ -45,7 +60,7 @@ while ((Get-Date) -lt $deadline) {
   Start-Sleep -Seconds 2
 }
 
-$botCommand = if ($Speedrun) { "`$host.UI.RawUI.WindowTitle='Bot Speedrun'; `$env:PLANNER='desktop'; `$env:RUN_ID='$world'; node speedrun\nether-agent.mjs" }
+$botCommand = if ($Speedrun) { "`$host.UI.RawUI.WindowTitle='Bot Speedrun'; `$env:PLANNER='desktop'; `$env:LAYA_MODEL='english'; `$env:RUN_ID='$world'; node speedrun\nether-agent.mjs" }
   else { "`$host.UI.RawUI.WindowTitle='Bot AutoMine'; npm run missao" }
 $windows += (Start-Process powershell -PassThru -WorkingDirectory $root -ArgumentList "-NoExit", "-Command", $botCommand).Id
 ConvertTo-Json @($windows) | Set-Content "$root\.janelas.json"
