@@ -60,6 +60,21 @@ Se algo der errado:
 Quando o bot termina uma missão, ou quando empaca, a janela do bot mostra:
 `>>> O agente precisa de um novo plano`. Aí é só pedir a próxima ao Claude.
 
+## Speedrun do dragão
+
+O bot tenta ir do zero até matar o Ender Dragon. O Laya escolhe cada ação, e o Claude diz o objetivo de cada etapa.
+
+1. Se estiver tudo ligado, desligue: `.\desligar.ps1`.
+2. Ligue no modo speedrun: `.\iniciar.ps1 -Speedrun`. Ele cria um mundo novo, sempre com a mesma semente.
+3. No Claude Desktop, peça:
+   *"Vamos fazer o speedrun do dragão. Veja o jogo, siga as instruções do pedido e fique respondendo cada pedido
+   de plano até o bot sair pelo portal do End."*
+4. Assista em http://localhost:3007.
+
+Para parar no meio, crie um arquivo chamado `stop` na pasta da partida (`runs\speedrun-...`): o bot termina a
+ação atual e para. Para voltar às missões, rode `.\desligar.ps1` e depois `.\iniciar.ps1`. O mundo das missões
+volta sozinho.
+
 ## Quem jogou mais: o Laya ou o Claude?
 
 ```powershell

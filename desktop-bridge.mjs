@@ -8,7 +8,7 @@ export function desktopBridge(){
  if(bridge)return bridge;
  let latest=null,currentPlan=null,request=null,waiters=[],commandHandler=null,cancelRequested=false;
  const recent=[];
- const snapshot=()=>({estado:latest,plano:currentPlan,pedido:request&&{motivo:request.reason,desde:new Date(request.since).toISOString()},ultimas_acoes:recent.slice(-10)});
+ const snapshot=()=>({estado:latest,plano:currentPlan,pedido:request&&{motivo:request.reason,desde:new Date(request.since).toISOString(),...(request.instructions&&{instrucoes:request.instructions})},ultimas_acoes:recent.slice(-10)});
  const wake=()=>{for(const w of waiters.splice(0))w();};
  const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://127.0.0.1');
@@ -54,11 +54,12 @@ export function desktopBridge(){
   takeCancel(){const c=cancelRequested;cancelRequested=false;return c;},
   get waiting(){return !!request;},
   // Resolves when Claude Desktop sends a plan through definir_plano. A newer request replaces the reason, not the promise.
-  requestPlan(state,reason){
+  // instructions: the planner system prompt (the dragon route), shown to Claude Desktop inside "pedido".
+  requestPlan(state,reason,instructions){
    latest=state;
    if(request){request.reason=reason;return request.promise;}
    let resolve;const promise=new Promise(r=>resolve=r);
-   request={reason,since:Date.now(),resolve,promise};
+   request={reason,instructions,since:Date.now(),resolve,promise};
    console.log('\n>>> O agente precisa de um novo plano: '+reason+'\n>>> Peça ao Claude Desktop: "veja o jogo e defina o próximo plano"\n');
    wake();
    return promise;

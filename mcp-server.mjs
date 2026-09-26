@@ -22,7 +22,7 @@ const register=server.registerTool.bind(server);
 server.registerTool=(name,config,cb)=>register(name,config,config.inputSchema?async(args,extra)=>record(name,args,await cb(args,extra)):async extra=>record(name,{},await cb(extra)));
 server.registerTool('ver_jogo',{
  title:'Ver o jogo',
- description:'Mostra o estado atual do bot no Minecraft: posição, vida, fome, inventário, blocos e itens por perto, o plano atual, as últimas ações e se o agente está esperando um plano novo (campo "pedido"). Use antes de definir um plano.',
+ description:'Mostra o estado atual do bot no Minecraft: posição, vida, fome, inventário, blocos e itens por perto, o plano atual, as últimas ações e se o agente está esperando um plano novo (campo "pedido"). Use antes de definir um plano. No speedrun do dragão, "pedido.instrucoes" traz as regras da rota: siga-as no plano (objective, targets e waypoint viram objetivo, itens e destino do definir_plano).',
 },async()=>{try{return text(await bridge('/estado'));}catch(e){return fail(e);}});
 server.registerTool('definir_plano',{
  title:'Definir plano',
@@ -40,7 +40,8 @@ Itens usam os nomes do Minecraft 1.16.5 em inglês (oak_log, stick, crafting_tab
  },
 },async({objetivo,itens,destino,notas})=>{
  try{
-  if(!itens?.length&&!destino)return fail(Error('Missão sem itens nem destino não tem como terminar. Inclua os itens que o bot deve ter ao final, um destino, ou use executar_comandos para ações diretas.'));
+  // The dragon speedrun (pedido with instrucoes) has stages with neither, such as the fight itself.
+  if(!itens?.length&&!destino&&!(await bridge('/estado')).pedido?.instrucoes)return fail(Error('Missão sem itens nem destino não tem como terminar. Inclua os itens que o bot deve ter ao final, um destino, ou use executar_comandos para ações diretas.'));
   const body={objective:objetivo,targets:Object.fromEntries((itens||[]).map(i=>[i.item,i.quantidade])),waypoint:destino||null,notes:notas||''};
   const r=await bridge('/plano',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   return text(r.atendeu_pedido?'Plano enviado. O bot estava esperando e já começou.':'Plano enviado. O bot passa a seguir este plano.');
@@ -90,7 +91,7 @@ server.registerTool('ultimas_acoes',{
 },async()=>{try{const s=await bridge('/estado');return text({ultimas_acoes:s.ultimas_acoes,plano:s.plano,pedido:s.pedido});}catch(e){return fail(e);}});
 server.registerTool('esperar_pedido_de_plano',{
  title:'Esperar pedido de plano',
- description:'Espera até 45 segundos o bot pedir um plano novo (quando termina a missão ou empaca). Se "pedido" vier preenchido, veja o estado e chame definir_plano; se vier vazio, o bot ainda está trabalhando e você pode esperar de novo.',
+ description:'Espera até 45 segundos o bot pedir um plano novo (quando termina a missão ou empaca). Se "pedido" vier preenchido, veja o estado e chame definir_plano; se vier vazio, o bot ainda está trabalhando e você pode esperar de novo. Se o pedido trouxer "instrucoes" (speedrun do dragão), siga-as.',
 },async()=>{try{return text(await bridge('/aguardar?ms=45000',{},50000));}catch(e){return fail(e);}});
 await server.connect(new StdioServerTransport());
 console.error('auto-mine MCP pronto');

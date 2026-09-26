@@ -5,8 +5,9 @@ Um bot que joga Minecraft Java 1.16.5 (servidor local, modo Peaceful). O **Claud
 por um pai e o filho: fale em português simples e mostre resultado no jogo rápido.
 
 Fork de [rmalde/minecraft-agent](https://github.com/rmalde/minecraft-agent) (remoto `upstream`), publicado em
-`origin` (github.com/rodsgobbo/laya-mine, **público**). O agente original de speedrun do dragão saiu do repositório;
-há uma cópia local em `_speedrun-original/`, ignorada pelo git. `README.md` e `COMO-JOGAR.md` são públicos: não
+`origin` (github.com/rodsgobbo/laya-mine, **público**). Do agente original ficou só o speedrun do dragão, em
+`speedrun/` (com o Laya no lugar do JEV e o Claude Desktop no lugar do Astra). O resto (gravação nativa de macOS,
+laboratórios, testes antigos) tem uma cópia local em `_speedrun-original/`, ignorada pelo git. `README.md` e `COMO-JOGAR.md` são públicos: não
 ponha neles nomes, IPs da rede de casa nem caminhos pessoais.
 
 ## Como as peças se ligam
@@ -31,6 +32,7 @@ Claude Desktop ──MCP──> mcp-server.mjs ──HTTP 127.0.0.1:3100──> 
 | `iniciar.ps1`, `desligar.ps1`, `reiniciar-bot.ps1` | Ligar tudo (e liga o RCON, anota as janelas em `.janelas.json`), desligar tudo, reiniciar só o bot |
 | `rcon.mjs` | Manda um comando de console ao servidor (`node rcon.mjs stop`), usado pelo `desligar.ps1` |
 | `metricas.mjs` | Decisões do Laya vs do Claude e previsão de tokens por construção (lê `runs/*/events.jsonl` e `runs/mcp-uso.jsonl`) |
+| `speedrun/nether-agent.mjs` | Speedrun do dragão (`.\iniciar.ps1 -Speedrun`): rota fixa da semente `8398967436125155523` em `speedrun/optimization/nether/config.json`, etapas (`stage()`), opções filtradas por `optimization/policy.mjs`. Com `PLANNER=desktop`, o prompt da rota vai em `pedido.instrucoes` e o plano é pedido por etapa (no máximo a cada 3 min na mesma etapa) |
 | `diag/buraco.mjs` | Segundo bot de diagnóstico para separar bug do pathfinder de estado preso do bot |
 
 ## Quem faz o quê
@@ -51,6 +53,10 @@ Claude Desktop ──MCP──> mcp-server.mjs ──HTTP 127.0.0.1:3100──> 
   o mundo; só fecha à força se o RCON não responder. Nunca mate o `java` do servidor sem avisar o usuário.
 - Reiniciar **só o bot** depois de mudar código: `.\reiniciar-bot.ps1` (ou `-Background`). O inventário e a posição
   ficam salvos no servidor. Mudanças em `mcp-server.mjs` só valem depois de fechar e abrir o Claude Desktop.
+- Speedrun: `.\iniciar.ps1 -Speedrun` cria o mundo `speedrun-<data>` (o nome do mundo das missões fica em
+  `server\.mundo-anterior`, e o `desligar.ps1` o devolve). O `reiniciar-bot.ps1` é só para missões. Para retomar um
+  speedrun, feche a janela "Bot Speedrun" e rode `$env:PLANNER='desktop'; $env:RUN_ID='<mesma partida>';
+  node speedrun\nether-agent.mjs` (ele relê `runs/<partida>/status.json`). Para parar, crie `runs/<partida>/stop`.
 - **Antes de reiniciar o bot, pergunte ao usuário**: o reinício interrompe missão ou comando em andamento, e
   reiniciar no meio de um pedido já fez um pedido se perder.
 - Visualizador: http://localhost:3007 (Ctrl+F5 depois de mudar `viewer-follow.js` ou `recording-client.js`).
@@ -69,8 +75,9 @@ Claude Desktop ──MCP──> mcp-server.mjs ──HTTP 127.0.0.1:3100──> 
 2. `Action timeout` sem o bot sair do lugar costuma ser o pathfinder travado, não falta de tempo. Compare com
    `node diag/buraco.mjs` (um segundo bot, "Diag", cava um buraco e tenta sair). Se o Diag sai e o bot não,
    o bot está num estado preso: ache a causa no código e reinicie.
-3. Faça a menor mudança que resolve e confira com `node --check <arquivo>`. Não há testes automáticos do bot
-   de missões (os que existiam eram do speedrun): a prova é no jogo.
+3. Faça a menor mudança que resolve e confira com `node --check <arquivo>`. `node --test speedrun/planejador.test.mjs` testa a
+   ponte com o Claude Desktop (porta 3199, roda com o bot ligado). O bot em si não tem testes automáticos: a
+   prova é no jogo.
 4. Explique ao usuário o que quebrou e o que mudou, e peça para reiniciar.
 
 ### Problemas no visualizador (o que aparece na tela)
@@ -114,6 +121,10 @@ reescrita e o projeto foi publicado como fork público.
 
 Próximos passos, na ordem combinada:
 
+0. **Primeiro speedrun com o Laya.** O código está pronto (26/09/2026) mas nunca rodou. Nos eventos, veja
+   `planner_request`/`plan` (o Claude Desktop respondeu?), `decision` com `FAILED` e a etapa (`stage`) em que parou.
+   O risco maior é o Laya errar escolhas críticas no End (fugir do sopro, `one_timed_bed`). O remédio é o mesmo das
+   missões: oferecer opções mais específicas em `candidates()` e `policy.mjs`.
 1. **Expor o `construir`.** Já existe em `comandos.mjs` (formas `cheio`, `paredes`, `oca`; de baixo para cima,
    limpa folhas e capim, pula o que já está pronto), mas **não está** no `z.enum` nem na descrição do
    `mcp-server.mjs`, e nunca foi testado. Testar numa área livre antes de expor.

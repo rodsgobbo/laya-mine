@@ -5,7 +5,7 @@ $root = $PSScriptRoot
 $procs = Get-CimInstance Win32_Process
 
 # 1. Bot first, so it stops acting before the server goes away. Its inventory and position stay on the server.
-foreach ($p in $procs | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'missao\.mjs' }) {
+foreach ($p in $procs | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'missao\.mjs|nether-agent\.mjs' }) {
   Stop-Process -Id $p.ProcessId -Force; Write-Host "Bot desligado"
 }
 
@@ -23,8 +23,19 @@ if ($server) {
   } else { Write-Host "Servidor do Minecraft desligado, mundo salvo" }
 }
 
+# After a speedrun, the next .\iniciar.ps1 goes back to the missions world (iniciar.ps1 -Speedrun saved its name).
+$previous = "$root\server\.mundo-anterior"
+$serverRunning = $server -and (Get-Process -Id $server.ProcessId -ErrorAction SilentlyContinue)
+if ((Test-Path $previous) -and -not $serverRunning) {
+  $name = (Get-Content $previous -Raw).Trim()
+  $props = "$root\server\server.properties"
+  (Get-Content $props -Raw) -replace '(?m)^level-name=.*$', "level-name=$name" | Set-Content $props -NoNewline -Encoding ASCII
+  Remove-Item $previous
+  Write-Host "Próximo .\iniciar.ps1 volta ao mundo das missões ($name)"
+}
+
 # 3. Laya: only the laya-serve executable and the Python it starts from this project's .venv.
-foreach ($p in $procs | Where-Object { $_.Name -eq 'laya-serve.exe' -or ($_.Name -eq 'python.exe' -and $_.CommandLine -match 'Auto-mine\\\.venv' -and $_.CommandLine -match 'laya') }) {
+foreach ($p in $procs | Where-Object { $_.Name -eq 'laya-serve.exe' -or ($_.Name -eq 'python.exe' -and $_.CommandLine -match [regex]::Escape("$root\.venv") -and $_.CommandLine -match 'laya') }) {
   Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
 }
 Write-Host "Laya desligado"

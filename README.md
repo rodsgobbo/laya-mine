@@ -76,7 +76,10 @@ online-mode=false
 difficulty=peaceful
 spawn-protection=0
 rcon.password=
+level-seed=8398967436125155523
 ```
+
+A semente só é obrigatória para o speedrun do dragão, mas também serve para as missões.
 
 O `iniciar.ps1` liga o RCON e gera sozinho uma senha aleatória para ele na primeira vez. Com ela, o
 `desligar.ps1` salva o mundo antes de fechar o servidor.
@@ -109,6 +112,22 @@ Feche e abra o Claude Desktop. As ferramentas `ver_jogo`, `definir_plano` e `exe
 Depois disso, é só pedir as coisas no Claude Desktop. O guia completo, com exemplos de pedidos, o visualizador e o
 que fazer quando o bot empaca, está em **[COMO-JOGAR.md](COMO-JOGAR.md)**.
 
+## Speedrun do dragão (experimental)
+
+A pasta `speedrun/` tem o agente do projeto original, que vai do mundo vazio até matar o Ender Dragon por uma
+rota fixa, passando pela vila, pelos baús de obsidiana, pelo Nether e pelo portal do End. Aqui o Laya escolhe cada
+ação, e o Claude Desktop define o objetivo de cada etapa.
+
+```powershell
+.\desligar.ps1               # se estiver ligado
+.\iniciar.ps1 -Speedrun      # mundo novo com a semente da rota
+```
+
+A rota só vale para a semente `8398967436125155523` em modo Peaceful (veja
+`speedrun/optimization/nether/config.json`). Cada corrida cria um mundo novo, e o `desligar.ps1` volta ao mundo
+das missões. O recorde do projeto original, com outros modelos, foi de 8m43s. Com o Laya ainda não houve corrida
+completa.
+
 ## Arquivos
 
 | Arquivo | Papel |
@@ -124,6 +143,7 @@ que fazer quando o bot empaca, está em **[COMO-JOGAR.md](COMO-JOGAR.md)**.
 | `rcon.mjs` | Manda um comando ao console do servidor (`node rcon.mjs stop`) |
 | `metricas.mjs` | Quantas decisões foram do Laya e quantas do Claude, e a estimativa de tokens por construção |
 | `diag/buraco.mjs` | Segundo bot de diagnóstico, para separar bug do pathfinder de bot preso |
+| `speedrun/` | Speedrun do dragão: `nether-agent.mjs` e os módulos da rota, do combate e da segurança |
 | `CLAUDE.md` | Instruções para o Claude (Claude Code ou Claude Desktop com acesso à pasta) consertar o bot |
 
 Cada partida grava um registro em `runs/<partida>/events.jsonl`, com uma linha por decisão, comando e erro.
@@ -141,8 +161,9 @@ A chave da API da Anthropic, usada só no modo automático (`PLANNER=api`), é l
 ## Créditos
 
 Este projeto começou como fork de [rmalde/minecraft-agent](https://github.com/rmalde/minecraft-agent), um agente
-de speedrun até o Ender Dragon. O bot e os ajustes no pathfinder e no visualizador vieram de lá. Aqui ficou só a
-parte de missões e comandos, com o Laya no lugar do modelo de decisão original.
+de speedrun até o Ender Dragon. O agente do speedrun (`speedrun/`) e os ajustes no pathfinder e no visualizador
+vieram de lá. Aqui o Laya ocupa o lugar do modelo de decisão original (JEV), o Claude o do planejador, e as
+missões e os comandos diretos são novos. A gravação em vídeo nativa, feita para macOS, ficou de fora.
 
 - [Laya](https://huggingface.co/convaiinnovations/laya), da Convai Innovations (Apache-2.0)
 - [Mineflayer](https://github.com/PrismarineJS/mineflayer),
